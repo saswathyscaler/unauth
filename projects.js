@@ -353,10 +353,6 @@ exports.fixBrokenDocuments = async (req, res) => {
   }
 };
 
-
-
-
-
 exports.getProjectWeather = async (req, res) => {
   const projectId = req.params["projectId"];
 
@@ -364,42 +360,42 @@ exports.getProjectWeather = async (req, res) => {
     const project = await models.ProjectSnapshot.getProject(projectId);
     if (!project) return res.status(404).send("Project not found");
     const addressData = project.addressData || {};
-    let zip = (addressData.postalCode || "").toString();
+    let zip = (addressData.postalCode || "") + "";
     if (zip.length > 5) zip = zip.substring(0, 5);
-    if (zip.length < 5 || !/^[0-9]*$/.test(zip)) {
-      return res.status(422).send(`Invalid zip code - ${zip} - please update it in project settings`);
-    }
+    if (zip.length < 5 || !zip.match(/^[0-9]*$/))
+      return res
+        .status(422)
+        .send(`Invalid zip code - ${zip} - please update in project settings`);
 
-    const appid = process.env.OPEN_WEATHER_MAP_API_KEY;
+   
+        const appid = process.env.OPEN_WEATHER_MAP_API_KEY;
 
-    try {
-      const geoCodeResponse = await axios.get(`http://api.openweathermap.org/geo/1.0/zip?zip=${zip},US&appid=${appid}`);
-      if (!geoCodeResponse.data || !geoCodeResponse.data.lat || !geoCodeResponse.data.lon) {
-        return res.status(422).send("Invalid geocode data");
-      }
-
-      const weatherResponse = await axios.get(`https://api.openweathermap.org/data/2.5/forecast?lat=${geoCodeResponse.data.lat}&lon=${geoCodeResponse.data.lon}&units=imperial&appid=${appid}`);
-
-      // Respond with the data
-      res.json({ geoCodeResponse: geoCodeResponse.data, weatherResponse: weatherResponse.data });
-    } catch (error) {
-      console.error("Error:", error);
-      const status = error.response ? error.response.status : 422;
-      res.status(status).send(
-        [
-          `Error ${status}:`,
-          status === 404
-            ? `Could not get geocode or weather for this zip code`
-            : "Could not get data",
-        ].join(" ")
-      );
-    }
+    axios
+      .get(
+        ` https://api.openweathermap.org/data/2.5/forecast?zip=${zip},US&units=imperial&appid=${appid}`
+      )
+      .then(function (response) {
+        res.json(response.data);
+        // console.log(response.data,"response dtaa ******************************")
+      })
+      .catch(function (error) {
+        const status = error.response ? error.response.status : 422;
+        res
+          .status(status)
+          .send(
+            [
+              `Error ${status}:`,
+              status === 404
+                ? `Could not get weather for zip code ${zip}`
+                : "Could not get weather data",
+            ].join(" ")
+          );
+      });
   } catch (error) {
-    console.error(error);
+    Logger.error(error);
     res.status(422).send("Could not get project weather");
   }
 };
-
 exports.setup = (app) => {
   app.get('/api/suggestion/user/:projectId',async(req,res)=>{
     const { projectId } = req.params

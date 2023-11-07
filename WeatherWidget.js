@@ -16,29 +16,56 @@ export const WeatherWidget = () => {
   const { weather } = useContext(ProjectContext);
   const { loading, error, data, zip } = weather;
 
-  
+const currentDate = new Date()
+const currentTime = `${currentDate.getHours().toString().padStart(2, '0')}:${currentDate.getMinutes().toString().padStart(2, '0')}:${currentDate.getSeconds().toString().padStart(2, '0')}`;
+
   const distinctObjects = [];
   const distinctDates = {};
+  const timeArray = [];
+
+  for (let i = 0; i < 8; i++) {
+    const startHour = i * 3;
+    const startTime = `${startHour.toString().padStart(2, '0')}:00:00`;
+    timeArray.push(startTime);
+  }
   
-  for (const key in data.list) {
-    if (Object.hasOwnProperty.call(data.list, key)) {
-      const item = data.list[key];
-      const date = item.dt_txt.split(' ')[0];
+  let closestTimeBefore = null;
+
+for (let i = 0; i < timeArray.length; i++) {
+  if (timeArray[i] <= currentTime) {
+    closestTimeBefore = timeArray[i];
+  } else {
+    break; 
+  }
+}
+
+
+for (const key in data.list) {
+  if (Object.hasOwnProperty.call(data.list, key)) {
+    const item = data.list[key];
+
+    const dateTimeParts = item.dt_txt.split(' ');
+    const date = dateTimeParts[0];
+    const time = dateTimeParts[1];
+
+    if (time === closestTimeBefore) {
       if (!distinctDates[date]) {
         distinctDates[date] = true;
         distinctObjects.push(item);
       }
     }
   }
-  
+}
+
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
-  
+  const cityName = data.city?.name
+
   let selectedDay = null;
   if (!loading && !error) selectedDay = distinctObjects[selectedDayIdx || 0];
-console.log(distinctObjects,"distinctObjects")  
+  console.log("selectedDay",selectedDay)  
   if (!!error) return (
     <div className="">
-      <SectionHeader zip={zip} />
+      <SectionHeader zip={zip}  cityName={cityName} />
       <div className="px-2 overflow-y-auto bg-gray-50 border border-gray-200 rounded-sm shadow-inner w-80 sm:w-96 max-w-full sm:px-4 py-3" style={{ height: CONTAINER_HEIGHT, width: CONTAINER_WIDTH }}>
         <div className="flex flex-col justify-center items-center">
           <div className="bg-white p-1 rounded-full h-24 w-24 shadow-lg ring-1 ring-gray-100"><CloudMoonIcon /></div>
@@ -53,7 +80,7 @@ console.log(distinctObjects,"distinctObjects")
 
   return (
     <div className="">
-      <SectionHeader date={selectedDay?.dt} zip={zip} />
+      <SectionHeader date={selectedDay?.dt} zip={zip} cityName={cityName} />
       <div className="px-2 overflow-y-auto bg-white border border-gray-200 rounded-sm shadow-inner sm:px-4 py-3" style={{ height: CONTAINER_HEIGHT, width: CONTAINER_WIDTH }}>
         {loading && (
           <AnimatedLoadingMockup />
@@ -71,11 +98,10 @@ console.log(distinctObjects,"distinctObjects")
 
 
 const SelectedDateInfo = ({ selectedDay }) => {
-  // console.log("🚀 ~ file: WeatherWidget.js:58 ~ SelectedDateInfo ~ selectedDay:", selectedDay)
   return (
     <div className="flex flex-1 justify-between">
       <div className="">
-        <WeatherIcon icon={selectedDay.icon} />
+        <WeatherIcon icon={selectedDay.weather[0].icon} />
       </div>
       <div className="flex-grow-1">
         <SelectedDateDigest description={(selectedDay.weather?.[0] || {}).description} temp={selectedDay.main || {}} />
@@ -89,6 +115,7 @@ const SelectedDateInfo = ({ selectedDay }) => {
 
 
 const ForecastCard = ({ date, weather, selected }) => {
+  // console.log("weather..........",selected)
   let cardSelected = '';
   let imageSelected = 'bg-white bg-opacity-50 border-transparent';
   if (selected) {
@@ -114,9 +141,6 @@ const ForecastCard = ({ date, weather, selected }) => {
 }
 
 
-
-
-
 const FiveDayForecast = ({ list, setSelectedDayIdx, selectedDayIdx }) => {
  
   
@@ -127,6 +151,7 @@ const FiveDayForecast = ({ list, setSelectedDayIdx, selectedDayIdx }) => {
   return (
     <div className="flex w-full divide-x divide-gray-200">
       {dailyForecasts.map((day, i) => (
+        
         <a key={i} className="cursor-pointer w-1/5 block bg-opacity-50 hover:bg-blueGray-50" onClick={() => setSelectedDayIdx(i)}>
           <ForecastCard selected={i === selectedDayIdx} date={day.dt} weather={day} />
         </a>
@@ -201,7 +226,7 @@ const WeatherIcon = ({ icon, small=false }) => {
   )
 }
 
-const SectionHeader = ({ date, zip }) => {
+const SectionHeader = ({ date, zip ,cityName}) => {
   const d = date ? date * 1000 : Date.now();
   return (
     <div className="flex justify-between mb-2">
@@ -214,7 +239,7 @@ const SectionHeader = ({ date, zip }) => {
       {!!zip && (
         <span className="text-xs text-gray-600 flex items-center pr-2">
           <LocationMarkerIcon className="w-4 h-4 mr-0.5 text-red-500" />
-          {zip}
+          {cityName}
         </span>
       )}
     </div>
